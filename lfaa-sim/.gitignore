@@ -1,0 +1,6 @@
+*.o
+*.swp
+.depend
+lfaa_sim
+run2
+test

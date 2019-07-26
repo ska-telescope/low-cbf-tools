@@ -1,0 +1,10 @@
+bin/*
+lib/*
+*.ccfg
+*.swp
+*.o
+*.pro.user
+moc_*
+log-*
+Makefile
+!*.pro
