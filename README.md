@@ -5,7 +5,7 @@ This repository contains low-level engineering tools used during development of 
 * lfaa-sim (Generates a 25GBPS data stream, similar to that output by LFAA, that can be ingested & processed by FPGA)
 
 ## gemini-viewer
-The gemini-viewer is a GUI application which displays/modifies the contents of registers implemented in a Gemini FPGA card. It communicates with a Gemini FPGA card using UDP packets over an IP network. The communication protocol is described here: https://confluence.skatelescope.org/display/SE/Gemini+Protocol+in+briefhttps://confluence.skatelescope.org/display/SE/Gemini+Protocol+in+brief. The application is intended to be used for debugging a FPGA implemenation at the lowest level.
+The gemini-viewer is a GUI application which displays/modifies the contents of registers implemented in a Gemini FPGA card. It communicates with a Gemini FPGA card using UDP packets over an IP network. The communication protocol is described here: https://confluence.skatelescope.org/display/SE/Gemini+Protocol+in+brief. The application is intended to be used for debugging a FPGA implemenation at the lowest level.
 
 Usage: The gemini viewer is a GUI application that is started without command line arguments. It appends debug information to a file 'log-file.txt' located in its start directory. The GUI will show a window that lists all the FPGAs on the local network that are emitting 'discovery' packets. Clicking on any of these will allow the internal registers of the FPGA to be viewed. When opening a FPGA, a register address file (.ccfg) for the FPGA is requested, but if none is available an empty .ccfg file can be given. Register address files are output from ARGS (Automatic Register Generation System) which is part of the FPGA build framework.
 
