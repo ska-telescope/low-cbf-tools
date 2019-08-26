@@ -427,7 +427,24 @@ void Fpga_window::onUpdate2Done(bool timeout, uint32_t base, uint32_t numRegs
     }
 
     int pkt_offset = (base-m_tableBase);
-    // Display the bytes as register values
+    if(m_lastRegs.size() < int32_t(pkt_offset+numRegs))
+    {
+        int prev_size = m_lastRegs.size();
+        qDebug() << "expand m_lastRegs to" << pkt_offset+numRegs+1;
+        m_lastRegs.reserve(pkt_offset+numRegs+1);
+        qDebug() << ".. m_lastRegs expanded";
+        if(prev_size < pkt_offset)
+        {
+            for(int i=prev_size; i< pkt_offset; i++)
+                m_lastRegs.append(0xdead0000);
+            qDebug() << ".. m_lastRegs hole filled";
+        }
+        for(int i=int(pkt_offset); i<int32_t(pkt_offset+numRegs+1); i++)
+            m_lastRegs.append(0);
+        qDebug() << ".. m_lastRegs expansion zeroed!";
+    }
+
+
     for(int i=0; i<(int)numRegs; i++)
     {
         if((i+pkt_offset) >= m_tableWidget->rowCount())
@@ -438,6 +455,12 @@ void Fpga_window::onUpdate2Done(bool timeout, uint32_t base, uint32_t numRegs
         }
 
         QTableWidgetItem * twi = m_tableWidget->item(i+pkt_offset,2);
+        if(twi == nullptr)
+        {
+            qDebug() << "QTableWidgetItem null pointer at m_tableWidget->item("
+                << i+pkt_offset << ",2)";
+            continue;
+        }
         if( (i*4+3) < regs.size())
         {
             uint32_t v1 = regs.at(4*i+0) & 0x0ff;
@@ -448,8 +471,7 @@ void Fpga_window::onUpdate2Done(bool timeout, uint32_t base, uint32_t numRegs
             uint32_t val = (v4 << 24)  | (v3 << 16)
                         | (v2 << 8) | (v1);
             twi->setText(QString("0x%1").arg(val,8,16,QLatin1Char('0')));
-            if((i+pkt_offset) >= m_lastRegs.size())
-                m_lastRegs.append(0);
+
             if(val != m_lastRegs.at(i+pkt_offset))
             {
                 QFont f;
