@@ -121,35 +121,65 @@ int main( int argc, char* argv[])
     }
 
     // Send all the packets
-    std::cout<< "Start sending packets" << std::endl;
+    std::cout<< "\nStart sending packets" << std::endl;
     timespec ts_start;
     bool have_ts_start = (clock_gettime(CLOCK_MONOTONIC, &ts_start) >= 0);
+    struct timeval send_time;
+    send_time.tv_sec = ts_start.tv_sec;
+    send_time.tv_usec = ts_start.tv_nsec/1000;
     uint32_t pkt_sent = 0;
+    uint32_t chanl_cnt = 0;
+    uint32_t num_freq_chans =  tx_data.get_num_freq_chans();
     for(uint32_t rpt=0; rpt<(1+repeats); rpt++)
     {
         for(uint32_t i=0; i<n_pkts; i++)
         {
-#if 0
-            // How much delay before sending?
-            struct timeval waitTime;
-            waitTime.tv_usec = send_dly_us[i];
-            waitTime.tv_sec = 0;
-            while(waitTime.tv_usec > 1000000)
+            ++chanl_cnt;
+            send_time.tv_usec += send_dly_us[i];
+            while(send_time.tv_usec > 1000000)
             {
-                waitTime.tv_usec -= 1000000;
-                waitTime.tv_sec += 1;
+                send_time.tv_usec -= 1000000;
+                send_time.tv_sec += 1;
             }
 
-            // Delay
-            int numEvents;
-            do {
-                numEvents = select( 0, 0, 0, 0, &waitTime);
-            } while((numEvents == -1) && (errno == EINTR));
-            if(numEvents < 0)
+            // When we've sent one packet for each frequency channel,
+            // we stop and wait out the rest of the 2.21184msec interval
+            // before LFAA is due to have more packets ready
+            if(chanl_cnt >= num_freq_chans)
             {
-                std::cerr << "ERROR: select failure: " << strerror(errno)
-                    << std::endl;
-                return -1;
+                chanl_cnt = 0;
+#if 1
+                timespec ts_now;
+                bool ok = (clock_gettime(CLOCK_MONOTONIC, &ts_now) >= 0);
+                uint32_t now_usec = ts_now.tv_nsec/1000;
+                if(ok && ( (send_time.tv_sec > ts_now.tv_sec)
+                            ||((send_time.tv_sec == ts_now.tv_sec)
+                                &&( (send_time.tv_usec) > now_usec))))
+                {
+                    struct timeval waitTime;
+                    waitTime.tv_sec = send_time.tv_sec - ts_now.tv_sec;
+                    if(send_time.tv_usec > now_usec)
+                        waitTime.tv_usec = send_time.tv_usec - now_usec;
+                    else
+                    {
+                        waitTime.tv_sec -= 1;
+                        waitTime.tv_usec =
+                            (1000000 + send_time.tv_usec) - now_usec;
+                    }
+#if 1
+                    // Delay
+                    int numEvents;
+                    do {
+                        numEvents = select( 0, 0, 0, 0, &waitTime);
+                    } while((numEvents == -1) && (errno == EINTR));
+                    if(numEvents < 0)
+                    {
+                        std::cerr << "ERROR: select failure: "
+                            << strerror(errno) << std::endl;
+                        return -1;
+                    }
+#endif
+                }
             }
 #endif
             // Send a packet
@@ -157,6 +187,8 @@ int main( int argc, char* argv[])
         }
         pkt_sent += n_pkts;
     }
+
+    // Show duration statistics if the information is available
     timespec ts_end;
     bool have_ts_end;
     have_ts_end = (clock_gettime(CLOCK_MONOTONIC, &ts_end) >= 0);

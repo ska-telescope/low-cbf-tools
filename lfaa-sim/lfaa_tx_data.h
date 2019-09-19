@@ -13,6 +13,9 @@
 #include <sys/socket.h> // for iovec and msghdr
 #include <arpa/inet.h>  // for sockaddr_in
 #include <memory>       // for unique_ptr
+#include <list>
+
+struct channel_list;
 
 class Lfaa_tx_data
 {
@@ -32,9 +35,12 @@ class Lfaa_tx_data
         char m_zero[8192] = {0};
         std::unique_ptr<char[]>m_payload;
         std::unique_ptr<uint64_t[]> m_send_dly_us;
+        uint32_t m_num_freq_chans = {16};
 
         static uint64_t big_endian_64bit(uint8_t * ptr);
         static uint32_t big_endian_32bit(uint8_t * ptr);
+        void add_freq_channel( std::list<channel_list> *cl
+                , uint32_t station, uint32_t chan);
 
     public:
         Lfaa_tx_data();
@@ -45,6 +51,7 @@ class Lfaa_tx_data
         struct msghdr * get_msg_ptr();
         uint64_t * get_send_dly_us();
         bool set_dest(char * destination, uint16_t port);
+        uint32_t get_num_freq_chans();
 };
 
 #endif

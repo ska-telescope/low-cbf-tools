@@ -109,6 +109,36 @@ bool Lfaa_tx_data::load_header_file(std::string file)
     return true;
 }
 
+struct channel_list
+{
+    uint32_t station;
+    std::list<uint32_t> freq_chans;
+};
+
+void Lfaa_tx_data::add_freq_channel( std::list<channel_list> *cl
+        , uint32_t station, uint32_t chan)
+{
+    for( auto it = cl->begin(); it!=cl->end(); ++it)
+    {
+        if(it->station == station)
+        {
+            for( auto chan_in_use: it->freq_chans)
+            {
+                if(chan_in_use == chan)
+                    return;
+            }
+            it->freq_chans.push_back(chan);
+            return;
+        }
+    }
+    channel_list c;
+    c.station = station;
+    c.freq_chans.push_back(chan);
+    cl->push_back(c);
+    return;
+}
+
+
 bool Lfaa_tx_data::load_data_file(std::string file)
 {
     m_is_data_ok = false;
@@ -127,8 +157,30 @@ bool Lfaa_tx_data::load_data_file(std::string file)
 
     Lfaa_hdr_t * hdr_data_ptr = reinterpret_cast<Lfaa_hdr_t *>(m_hdr.get());
     uint64_t last_send_ns = 0;
+    std::list<channel_list> in_use;
     for(unsigned int idx=0; idx<m_num_pkts; idx++)
     {
+        // for each station, create a list of channels it is sending
+        uint32_t stationID = hdr_data_ptr[idx].spead_hdr[104-43];
+        stationID += (hdr_data_ptr[idx].spead_hdr[103-43] << 8);
+        uint32_t logicalChan = hdr_data_ptr[idx].spead_hdr[11];
+        logicalChan += (hdr_data_ptr[idx].spead_hdr[10] << 8);
+        add_freq_channel(&in_use, stationID, logicalChan);
+#if 0
+        // debug
+        {
+            uint32_t substationID = hdr_data_ptr[idx].spead_hdr[101-43];
+            uint32_t subarrayIdx = hdr_data_ptr[idx].spead_hdr[102-43];
+
+            std::cout << big_endian_64bit(hdr_data_ptr[idx].send_time_ns)
+            << "," << stationID
+            << "," << substationID
+            << "," << subarrayIdx
+            << "," << logicalChan
+            << std::endl;
+        }
+#endif
+
         //Fill in second iovec entry
         uint64_t offset = big_endian_64bit(hdr_data_ptr[idx].data_offset);
         uint32_t len = big_endian_32bit(hdr_data_ptr[idx].hdr_data_len_bytes);
@@ -169,6 +221,11 @@ bool Lfaa_tx_data::load_data_file(std::string file)
     std::cout << "Message headers and iovecs created" << std::endl;
 
     m_is_data_ok = true;
+    m_num_freq_chans = 0;
+    for(auto ch: in_use)
+        m_num_freq_chans += ch.freq_chans.size();
+    std::cout << "Total of " << m_num_freq_chans
+        << " coarse channels for " << in_use.size() << " stations" << std::endl;
     return true;
 }
 
@@ -204,4 +261,9 @@ bool Lfaa_tx_data::set_dest(char * destination, uint16_t port)
     m_dest.sin_port = htons(port);
 
     return true;
+}
+
+uint32_t Lfaa_tx_data::get_num_freq_chans()
+{
+    return m_num_freq_chans;
 }
